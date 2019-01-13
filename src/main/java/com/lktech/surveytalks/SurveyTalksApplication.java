@@ -19,7 +19,6 @@ public class SurveyTalksApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SurveyTalksApplication.class, args);
-
 		System.out.println("\nsurvey-talks-is-started...");
 	}
 
