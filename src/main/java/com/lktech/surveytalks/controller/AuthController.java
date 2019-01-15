@@ -20,12 +20,12 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.net.URI;
 import java.util.Collections;
@@ -51,13 +51,26 @@ public class AuthController {
 
     @PostMapping("/signin")
     public ResponseEntity<?> signIn(@Valid @RequestBody LoginRequest login) {
-        Authentication authentication = authenticationManager
+        Authentication auth = authenticationManager
                 .authenticate(new UsernamePasswordAuthenticationToken(login.getUsernameOrEmail() , login.getPassword()));
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = tokenProvider.generateToken(authentication); // create new JWT Token to user loggedIn
+        SecurityContextHolder.getContext().setAuthentication(auth);
+        String jwt = tokenProvider.generateToken(auth); // create new JWT Token to user loggedIn
 
         return ResponseEntity.ok(new JwtAuthenticationResponse(jwt)); //  set new jwt token to String `accessToken` & return
+    }
+
+    @GetMapping("/logout")
+    public ResponseEntity<?> logOut(HttpServletRequest request, HttpServletResponse response) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+           // SecurityContextHolder.clearContext();
+            new SecurityContextLogoutHandler().logout(request, response, auth);
+
+            return ResponseEntity.ok().body(new ApiResponse(true, "User logout successfully"));
+        }
+        return null;
     }
 
     @PostMapping("/signup")
@@ -78,7 +91,7 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         // set default user role => ROLE_USER
-        Role userRole =roleRepository.findByName(RoleName.ROLE_USER)
+        Role userRole = roleRepository.findByName(RoleName.ROLE_USER )
                 .orElseThrow(()-> new InternalServerException("User Role Not set.!"));
 
         user.setRoles(Collections.singleton(userRole)); //  used to return an immutable set containing
@@ -89,10 +102,10 @@ public class AuthController {
                 .fromCurrentContextPath().path("/api/users/{username}")
                 .buildAndExpand(result.getUsername()).toUri();
 
-        return ResponseEntity.created(location).body(new ApiResponse(true, "User registered successfully"));
+        return ResponseEntity
+                .created(location)
+                .body(new ApiResponse(true, "User registered successfully"));
 
     }
-
-
 
 }
